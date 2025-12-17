@@ -65,29 +65,26 @@ export default function Plans() {
     const days = daysMatch ? parseInt(daysMatch[1], 10) : null;
 
     // 1) UNLIMITED 5G: any plan mentioning 5G
-    if (desc.includes("5G") || data.includes("5G") || call.includes("5G")) {
+    if (data.includes("5G") || desc.includes("5G") || call.includes("5G")) {
       return "UNLIMITED 5G";
     }
 
-    // 2) DATA: data-focused plans or high data amounts
-    if (desc.includes("DATA") || desc.includes("NO CALLS") || 
-        data.includes("GB") && (call.includes("NO") || !call.includes("UNLIMITED"))) {
-      return "DATA";
-    }
-
-    // 3) SMART RECHARGE: short validity (1-7 days) or low price
-    if ((days && days <= 7) || price <= 100) {
+    // 2) SMART RECHARGE: 1-day plans or very low price
+    if (days === 1 || price <= 59) {
       return "SMART RECHARGE";
     }
 
-    // 4) TRULY UNLIMITED: long validity with unlimited features
-    if ((days && days >= 28) && 
-        (data.includes("UNLIMITED") || call.includes("UNLIMITED") || 
-         desc.includes("UNLIMITED"))) {
+    // 3) DATA: plans with "No Calls" or "No Voice"
+    if (call.includes("NO CALLS") || call.includes("NO VOICE") || call.includes("NO")) {
+      return "DATA";
+    }
+
+    // 4) TRULY UNLIMITED: long validity (56+ days) with unlimited features
+    if (days && days >= 56 && call.includes("UNLIMITED")) {
       return "TRULY UNLIMITED";
     }
 
-    // 5) RECOMMENDED: medium validity plans (8-27 days) or popular price range
+    // 5) RECOMMENDED: everything else (28-55 days, medium price)
     return "RECOMMENDED";
   }
 
