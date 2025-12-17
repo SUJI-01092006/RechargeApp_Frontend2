@@ -7,6 +7,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('analytics');
   const [plans, setPlans] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   const [editingPlan, setEditingPlan] = useState(null);
   const [showAddPlan, setShowAddPlan] = useState(false);
@@ -85,8 +86,14 @@ const Admin = () => {
     
     if (userRole !== 'admin' || isLoggedIn !== 'true') {
       navigate('/login');
+    } else {
+      setIsAuthorized(true);
     }
   }, [navigate]);
+
+  if (!isAuthorized) {
+    return <div style={{padding: '20px'}}>Checking authorization...</div>;
+  }
 
   // Plan management functions
   const handleDeletePlan = async (planId) => {
