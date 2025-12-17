@@ -36,14 +36,25 @@ export default function Plans() {
 
   // Decide which tab/category a plan belongs to based on its details
   function getCategoryForPlan(p) {
-    // If backend already set an explicit type/category, use that
+    // PRIORITY 1: If backend set an explicit type/category, use that FIRST
     if (p.type || p.Type) {
-      return p.type || p.Type;
+      const explicitType = (p.type || p.Type).toString().trim().toUpperCase();
+      // Direct match with our tab names
+      const normalizedType = normalize(explicitType);
+      
+      // Check if it matches any of our fixed tabs
+      for (const tab of FIXED_TABS) {
+        if (normalize(tab) === normalizedType) {
+          return tab;
+        }
+      }
     }
 
-    const desc = normalize(p.description);
-    const data = normalize(p.data);
-    const validity = normalize(p.validity || p.Validity);
+    // PRIORITY 2: If no explicit type or doesn't match, derive from content
+    const desc = normalize(p.description || '');
+    const data = normalize(p.data || '');
+    const call = normalize(p.call || '');
+    const validity = normalize(p.validity || p.Validity || '');
     const price = Number(p.price) || 0;
 
     // 1) UNLIMITED 5G: any plan mentioning 5G explicitly
@@ -52,19 +63,19 @@ export default function Plans() {
     }
 
     // 2) DATA: data-only plans (No Calls / No Voice)
-    if (desc.includes("NO CALLS") || desc.includes("NO VOICE")) {
+    if (desc.includes("NO CALLS") || desc.includes("NO VOICE") || desc.includes("DATA ONLY") || call.includes("NO CALLS")) {
       return "DATA";
     }
 
     // 3) SMART RECHARGE: short validity or very low price
     const daysMatch = validity.match(/(\d+)\s*DAY/i);
     const days = daysMatch ? parseInt(daysMatch[1], 10) : null;
-    if ((days && days <= 2) || price <= 50) {
+    if ((days && days <= 7) || price <= 100) {
       return "SMART RECHARGE";
     }
 
     // 4) TRULY UNLIMITED: longer validity with unlimited calls/data
-    if (desc.includes("UNLIMITED CALLS") || data.includes("UNLIMITED")) {
+    if (desc.includes("UNLIMITED") || data.includes("UNLIMITED") || call.includes("UNLIMITED") || desc.includes("TRULY")) {
       if (days && days >= 56) {
         return "TRULY UNLIMITED";
       }
