@@ -22,10 +22,23 @@ export default function Plans() {
     axios
       .get("https://rechargeapp-backend.onrender.com/api/plans")
       .then((res) => {
-        // Backend returns: { success: true, plans: [...] }
-        setPlans(res.data?.plans || []);
+        console.log("API Response:", res.data);
+        const plansData = res.data?.plans || res.data || [];
+        console.log("Plans loaded:", plansData.length);
+        setPlans(plansData);
       })
-      .catch(() => setPlans([]));
+      .catch((error) => {
+        console.error("API Error:", error);
+        // Fallback sample data for testing
+        const samplePlans = [
+          { _id: "1", price: 199, validity: "28 Days", data: "1.5GB/Day", call: "Unlimited", description: "Popular plan" },
+          { _id: "2", price: 49, validity: "1 Day", data: "1GB", call: "100 mins", description: "Quick recharge" },
+          { _id: "3", price: 599, validity: "84 Days", data: "Unlimited", call: "Unlimited", description: "Long term unlimited" },
+          { _id: "4", price: 299, validity: "30 Days", data: "25GB", call: "No Voice", description: "Data only plan" },
+          { _id: "5", price: 999, validity: "365 Days", data: "2GB/Day 5G", call: "Unlimited", description: "5G Annual plan" }
+        ];
+        setPlans(samplePlans);
+      });
   }, []);
 
   // Normalize for matching text
@@ -214,6 +227,11 @@ export default function Plans() {
 
       <hr />
 
+      {/* Debug Info */}
+      <div style={{fontSize: '12px', color: '#666', marginBottom: '10px'}}>
+        Total plans: {plans.length} | Filtered: {filteredPlans.length} | Active tab: {activeTab}
+      </div>
+
       {/* Plans List */}
       <div className="plans-list">
         {filteredPlans.length === 0 ? (
@@ -230,6 +248,7 @@ export default function Plans() {
                 {p.description && (
                   <p className="plan-description">{p.description}</p>
                 )}
+                <small style={{color: '#999'}}>Category: {getCategoryForPlan(p)}</small>
               </div>
 
               <button
