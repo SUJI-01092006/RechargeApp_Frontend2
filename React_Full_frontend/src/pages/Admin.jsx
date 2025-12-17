@@ -404,7 +404,7 @@ const Admin = () => {
 
 const PlanModal = ({ plan, isAdd, onSave, onClose }) => {
   const [formData, setFormData] = useState({
-    operator: plan?.operator || '',
+    operator: plan?.operator || 'Airtel',
     price: plan?.price || '',
     validity: plan?.validity || '',
     data: plan?.data || '',
@@ -430,102 +430,115 @@ const PlanModal = ({ plan, isAdd, onSave, onClose }) => {
   };
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '400px' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+      <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px', width: '350px', maxHeight: '90vh', overflow: 'auto' }}>
         <h3>{isAdd ? 'Add New Plan' : 'Edit Plan'}</h3>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div>
-            <label>Operator:</label>
-            <input
-              type="text"
+            <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Operator:</label>
+            <select
               value={formData.operator}
               onChange={(e) => setFormData({...formData, operator: e.target.value})}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              required
-            />
-          </div>
-          <div>
-            <label>Price:</label>
-            <input
-              type="number"
-              value={formData.price}
-              onChange={(e) => setFormData({...formData, price: e.target.value})}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              required
-            />
-          </div>
-          <div>
-            <label>Validity:</label>
-            <input
-              type="text"
-              value={formData.validity}
-              onChange={(e) => setFormData({...formData, validity: e.target.value})}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              required
-            />
-          </div>
-          <div>
-            <label>Data:</label>
-            <input
-              type="text"
-              value={formData.data}
-              onChange={(e) => setFormData({...formData, data: e.target.value})}
-              placeholder="e.g., 1.5GB/day, 3GB"
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              required
-            />
-          </div>
-          <div>
-            <label>Call:</label>
-            <input
-              type="text"
-              value={formData.call}
-              onChange={(e) => setFormData({...formData, call: e.target.value})}
-              placeholder="e.g., Unlimited calls, 100 mins"
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-              required
-            />
-          </div>
-          <div>
-            <label>Description:</label>
-            <input
-              type="text"
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-            />
-          </div>
-          <div>
-            <label>Type/Category:</label>
-            <select
-              value={formData.type}
-              onChange={(e) => setFormData({...formData, type: e.target.value})}
-              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
               required
             >
-              <option value="RECOMMENDED">RECOMMENDED</option>
-              <option value="TRULY UNLIMITED">TRULY UNLIMITED</option>
-              <option value="SMART RECHARGE">SMART RECHARGE</option>
-              <option value="DATA">DATA</option>
-              <option value="UNLIMITED 5G">UNLIMITED 5G</option>
+              <option value="Airtel">Airtel</option>
+              <option value="Jio">Jio</option>
+              <option value="VI">VI</option>
+              <option value="BSNL">BSNL</option>
             </select>
           </div>
-          <div>
-            <label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Price (₹):</label>
               <input
-                type="checkbox"
-                checked={formData.popular}
-                onChange={(e) => setFormData({...formData, popular: e.target.checked})}
+                type="number"
+                value={formData.price}
+                onChange={(e) => setFormData({...formData, price: e.target.value})}
+                style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
+                required
               />
-              Popular Plan
-            </label>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Validity:</label>
+              <input
+                type="text"
+                value={formData.validity}
+                onChange={(e) => setFormData({...formData, validity: e.target.value})}
+                placeholder="e.g., 28 days"
+                style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
+                required
+              />
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={onClose} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Data:</label>
+              <input
+                type="text"
+                value={formData.data}
+                onChange={(e) => setFormData({...formData, data: e.target.value})}
+                placeholder="1.5GB/day"
+                style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
+                required
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Calls:</label>
+              <input
+                type="text"
+                value={formData.call}
+                onChange={(e) => setFormData({...formData, call: e.target.value})}
+                placeholder="Unlimited"
+                style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
+                required
+              />
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Description:</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              placeholder="Plan details and benefits"
+              style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px', height: '50px', resize: 'vertical' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '14px', fontWeight: 'bold' }}>Category:</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({...formData, type: e.target.value})}
+                style={{ width: '100%', padding: '6px', marginTop: '3px', fontSize: '14px' }}
+                required
+              >
+                <option value="RECOMMENDED">RECOMMENDED</option>
+                <option value="TRULY UNLIMITED">TRULY UNLIMITED</option>
+                <option value="SMART RECHARGE">SMART RECHARGE</option>
+                <option value="DATA">DATA</option>
+                <option value="UNLIMITED 5G">UNLIMITED 5G</option>
+              </select>
+            </div>
+            <div style={{ marginTop: '20px' }}>
+              <label style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.popular}
+                  onChange={(e) => setFormData({...formData, popular: e.target.checked})}
+                />
+                Popular
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '15px' }}>
+            <button type="button" onClick={onClose} style={{ padding: '6px 12px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
               Cancel
             </button>
-            <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#ff4000ff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              {isAdd ? 'Add' : 'Update'}
+            <button type="submit" style={{ padding: '6px 12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
+              {isAdd ? 'Add Plan' : 'Update Plan'}
             </button>
           </div>
         </form>
