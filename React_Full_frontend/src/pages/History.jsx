@@ -36,7 +36,7 @@ export default function History() {
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/recharge/history/${currentUser.id}`,
+          `https://rechargeapp-backend.onrender.com/api/recharge/history/${currentUser.id}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
