@@ -35,27 +35,15 @@ export default function Plans() {
   }
 
   // Decide which tab/category a plan belongs to based on its details
-    // Decide which tab/category a plan belongs to based on its details
   function getCategoryForPlan(p) {
-    // PRIORITY 1: If backend set an explicit type/category, use that FIRST
+    // If backend already set an explicit type/category, use that
     if (p.type || p.Type) {
-      const explicitType = (p.type || p.Type).toString().trim().toUpperCase();
-      // Direct match with our tab names
-      const normalizedType = normalize(explicitType);
-      
-      // Check if it matches any of our fixed tabs
-      for (const tab of FIXED_TABS) {
-        if (normalize(tab) === normalizedType) {
-          return tab;
-        }
-      }
+      return p.type || p.Type;
     }
 
-    // PRIORITY 2: If no explicit type or doesn't match, derive from content
-    const desc = normalize(p.description || '');
-    const data = normalize(p.data || '');
-    const call = normalize(p.call || '');
-    const validity = normalize(p.validity || p.Validity || '');
+    const desc = normalize(p.description);
+    const data = normalize(p.data);
+    const validity = normalize(p.validity || p.Validity);
     const price = Number(p.price) || 0;
 
     // 1) UNLIMITED 5G: any plan mentioning 5G explicitly
@@ -64,19 +52,19 @@ export default function Plans() {
     }
 
     // 2) DATA: data-only plans (No Calls / No Voice)
-    if (desc.includes("NO CALLS") || desc.includes("NO VOICE") || desc.includes("DATA ONLY") || call.includes("NO CALLS")) {
+    if (desc.includes("NO CALLS") || desc.includes("NO VOICE")) {
       return "DATA";
     }
 
     // 3) SMART RECHARGE: short validity or very low price
     const daysMatch = validity.match(/(\d+)\s*DAY/i);
     const days = daysMatch ? parseInt(daysMatch[1], 10) : null;
-    if ((days && days <= 7) || price <= 100) {
+    if ((days && days <= 2) || price <= 50) {
       return "SMART RECHARGE";
     }
 
     // 4) TRULY UNLIMITED: longer validity with unlimited calls/data
-    if (desc.includes("UNLIMITED") || data.includes("UNLIMITED") || call.includes("UNLIMITED") || desc.includes("TRULY")) {
+    if (desc.includes("UNLIMITED CALLS") || data.includes("UNLIMITED")) {
       if (days && days >= 56) {
         return "TRULY UNLIMITED";
       }
@@ -85,7 +73,6 @@ export default function Plans() {
     // 5) RECOMMENDED: default / popular plans
     return "RECOMMENDED";
   }
-}
 
   // Filter plans by Type / Category (explicit `type` or derived from details)
   const filteredPlans = plans.filter((p) => {
@@ -254,4 +241,3 @@ export default function Plans() {
     </div>
   );
 }
-
