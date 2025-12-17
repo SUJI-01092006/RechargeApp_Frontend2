@@ -1,0 +1,537 @@
+import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+
+const Admin = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('analytics');
+  const [plans, setPlans] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [showAddPlan, setShowAddPlan] = useState(false);
+
+  // --- Analytics helpers ---
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    // Handles both ISO dates and locale strings
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toDateString();
+  };
+
+  const todayKey = new Date().toDateString();
+
+  const safeAmount = (t) => {
+    // Prefer explicit amount, fall back to price if that's what was stored
+    return Number(t.amount ?? t.price ?? 0) || 0;
+  };
+
+  const todayRecharges = transactions.filter(
+    (t) => normalizeDate(t.date) === todayKey
+  );
+
+  const todayTotalAmount = todayRecharges.reduce(
+    (sum, t) => sum + safeAmount(t),
+    0
+  );
+
+  const totalRecharges = transactions.length;
+  const totalAmount = transactions.reduce(
+    (sum, t) => sum + safeAmount(t),
+    0
+  );
+
+  const averageAmount =
+    totalRecharges > 0 ? Math.round(totalAmount / totalRecharges) : 0;
+
+  // Fetch all users' transactions for admin (from MongoDB)
+  useEffect(() => {
+    const fetchAllRecharges = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('https://rechargeapp-backend.onrender.com/api/recharge/history', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        const result = await response.json();
+        if (response.ok && result.success) {
+          setTransactions(result.history || []);
+        } else {
+          console.error('Failed to fetch recharge history:', result.message);
+        }
+      } catch (error) {
+        console.error('Error fetching recharge history:', error);
+      }
+    };
+
+    // Load once on mount
+    fetchAllRecharges();
+
+    // Refresh whenever admin switches to analytics or user history tab
+    if (activeTab === 'analytics' || activeTab === 'users') {
+      fetchAllRecharges();
+    }
+  }, [activeTab]);
+
+  // Check if user is admin on component mount
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    const isLoggedIn = localStorage.getItem('loggedIn');
+    
+    if (userRole !== 'admin' || isLoggedIn !== 'true') {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Plan management functions
+  const handleDeletePlan = async (planId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://rechargeapp-backend.onrender.com/api/plans/${planId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete plan' }));
+        toast.error(errorData.message || 'Failed to delete plan');
+        return;
+      }
+      
+      const result = await response.json();
+      if (result.success) {
+        setPlans(plans.filter(plan => plan._id !== planId));
+        toast.success('Plan deleted from MongoDB successfully');
+      } else {
+        toast.error(result.message || 'Failed to delete plan');
+      }
+    } catch (err) {
+      console.error('Delete plan error:', err);
+      toast.error('Failed to delete plan');
+    }
+  };
+
+  const handleUpdatePlan = async (planData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication required. Please login again.');
+        return;
+      }
+      
+      // Extract only the fields we want to update, excluding _id and __v
+      const { _id, __v, ...updateData } = planData;
+      
+      const response = await fetch(`https://rechargeapp-backend.onrender.com/api/plans/${_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to update plan' }));
+        toast.error(errorData.message || 'Failed to update plan');
+        return;
+      }
+      
+      const result = await response.json();
+      if (result.success) {
+        setPlans(plans.map(plan => plan._id === _id ? result.plan : plan));
+        setEditingPlan(null);
+        toast.success('Plan updated in MongoDB successfully');
+      } else {
+        toast.error(result.message || 'Failed to update plan');
+      }
+    } catch (err) {
+      console.error('Update plan error:', err);
+      toast.error('Failed to update plan');
+    }
+  };
+
+  const handleAddPlan = async (planData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('https://rechargeapp-backend.onrender.com/api/plans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(planData)
+      });
+      const result = await response.json();
+      if (result.success) {
+        setPlans([...plans, result.plan]);
+        setShowAddPlan(false);
+        toast.success('Plan added to MongoDB successfully');
+      } else {
+        toast.error(result.message || 'Failed to add plan');
+      }
+    } catch (err) {
+      console.error('Add plan error:', err);
+      toast.error('Failed to add plan');
+    }
+  };
+
+  // Fetch plans from MongoDB
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await fetch('https://rechargeapp-backend.onrender.com/api/plans');
+        const result = await response.json();
+        if (result.success) {
+          setPlans(result.plans);
+        }
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+      }
+    };
+    fetchPlans();
+  }, []);
+
+
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h1>Admin Dashboard</h1>
+        <button 
+          onClick={() => {
+            localStorage.removeItem('loggedIn');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('currentUser');
+            navigate('/');
+          }}
+          style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          Logout
+        </button>
+      </div>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <button 
+          onClick={() => setActiveTab('analytics')}
+          style={{ 
+            padding: '10px 20px', 
+            marginRight: '10px',
+            backgroundColor: activeTab === 'analytics' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'analytics' ? 'white' : 'black',
+            border: '1px solid #ccc',
+            cursor: 'pointer'
+          }}
+        >
+          Analytics
+        </button>
+        <button 
+          onClick={() => setActiveTab('users')}
+          style={{ 
+            padding: '10px 20px', 
+            marginRight: '10px',
+            backgroundColor: activeTab === 'users' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'users' ? 'white' : 'black',
+            border: '1px solid #ccc',
+            cursor: 'pointer'
+          }}
+        >
+          User History
+        </button>
+        <button 
+          onClick={() => setActiveTab('plans')}
+          style={{ 
+            padding: '10px 20px',
+            backgroundColor: activeTab === 'plans' ? '#007bff' : '#f8f9fa',
+            color: activeTab === 'plans' ? 'white' : 'black',
+            border: '1px solid #ccc',
+            cursor: 'pointer'
+          }}
+        >
+          Manage Plans
+        </button>
+      </div>
+
+      {activeTab === 'analytics' && (
+        <div>
+          <h2 style={{ marginBottom: '16px' }}>Analytics</h2>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: '20px',
+              marginBottom: '20px',
+            }}
+          >
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: '12px',
+                background:
+                  'linear-gradient(135deg, rgba(0, 123, 255, 0.1), rgba(0, 123, 255, 0.02))',
+                border: '1px solid rgba(0, 123, 255, 0.25)',
+              }}
+            >
+              <h3 style={{ marginBottom: '8px' }}>Today's Recharges</h3>
+              <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                {todayRecharges.length}
+              </div>
+              <p style={{ marginTop: '8px', color: '#555' }}>
+                Total Amount:{' '}
+                <span style={{ fontWeight: 600 }}>₹{todayTotalAmount}</span>
+              </p>
+            </div>
+
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: '12px',
+                background:
+                  'linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.02))',
+                border: '1px solid rgba(40, 167, 69, 0.25)',
+              }}
+            >
+              <h3 style={{ marginBottom: '8px' }}>Total Recharges</h3>
+              <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                {totalRecharges}
+              </div>
+              <p style={{ marginTop: '8px', color: '#555' }}>
+                All Time:{' '}
+                <span style={{ fontWeight: 600 }}>₹{totalAmount}</span>
+              </p>
+            </div>
+
+            <div
+              style={{
+                padding: '20px',
+                borderRadius: '12px',
+                background:
+                  'linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 193, 7, 0.02))',
+                border: '1px solid rgba(255, 193, 7, 0.25)',
+              }}
+            >
+              <h3 style={{ marginBottom: '8px' }}>Average Amount</h3>
+              <div style={{ fontSize: '32px', fontWeight: '700' }}>
+                ₹{averageAmount}
+              </div>
+              <p style={{ marginTop: '8px', color: '#555' }}>Per transaction</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div>
+          <h2>User Transactions (All Users)</h2>
+          {transactions.length > 0 ? (
+            <div>
+              {transactions.map((transaction, index) => (
+                <div key={index} style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '8px', marginBottom: '10px' }}>
+                  <h4>{transaction.type || 'Recharge'} - {transaction.operator || 'Unknown'}</h4>
+                  <p>User: {transaction.userId?.name || 'Unknown'} ({transaction.userId?.email || 'N/A'})</p>
+                  <p>Phone: {transaction.phoneNumber || 'N/A'}</p>
+                  <p>Amount: ₹{transaction.amount || 0}</p>
+                  <p>Date: {new Date(transaction.date || transaction.createdAt).toLocaleString()}</p>
+                  <p>Status: {transaction.status || 'Completed'}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No transactions found</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'plans' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2>Manage Plans</h2>
+            <button 
+              onClick={() => setShowAddPlan(true)}
+              style={{ padding: '10px 20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              Add New Plan
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+            {plans.map(plan => (
+              <div key={plan._id} style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '8px' }}>
+                <h4>{plan.operator?.toUpperCase()} - ₹{plan.price}</h4>
+                <p><strong>Validity:</strong> {plan.validity}</p>
+                <p><strong>Details:</strong> {plan.description}</p>
+                {plan.popular && <span style={{ backgroundColor: '#28a745', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>Popular</span>}
+                <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => setEditingPlan(plan)}
+                    style={{ padding: '5px 10px', backgroundColor: '#0051ffff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeletePlan(plan._id)}
+                    style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(editingPlan || showAddPlan) && (
+        <PlanModal 
+          plan={editingPlan}
+          isAdd={showAddPlan}
+          onSave={editingPlan ? handleUpdatePlan : handleAddPlan}
+          onClose={() => {
+            setEditingPlan(null);
+            setShowAddPlan(false);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+const PlanModal = ({ plan, isAdd, onSave, onClose }) => {
+  const [formData, setFormData] = useState({
+    operator: plan?.operator || '',
+    price: plan?.price || '',
+    validity: plan?.validity || '',
+    data: plan?.data || '',
+    call: plan?.call || '',
+    description: plan?.description || '',
+    type: plan?.type || 'RECOMMENDED',
+    popular: plan?.popular || false
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const submitData = {
+      operator: formData.operator,
+      price: Number(formData.price),
+      validity: formData.validity,
+      data: formData.data,
+      call: formData.call,
+      description: formData.description,
+      type: formData.type,
+      popular: formData.popular
+    };
+    onSave(isAdd ? submitData : { ...plan, ...submitData });
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '400px' }}>
+        <h3>{isAdd ? 'Add New Plan' : 'Edit Plan'}</h3>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label>Operator:</label>
+            <input
+              type="text"
+              value={formData.operator}
+              onChange={(e) => setFormData({...formData, operator: e.target.value})}
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            />
+          </div>
+          <div>
+            <label>Price:</label>
+            <input
+              type="number"
+              value={formData.price}
+              onChange={(e) => setFormData({...formData, price: e.target.value})}
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            />
+          </div>
+          <div>
+            <label>Validity:</label>
+            <input
+              type="text"
+              value={formData.validity}
+              onChange={(e) => setFormData({...formData, validity: e.target.value})}
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            />
+          </div>
+          <div>
+            <label>Data:</label>
+            <input
+              type="text"
+              value={formData.data}
+              onChange={(e) => setFormData({...formData, data: e.target.value})}
+              placeholder="e.g., 1.5GB/day, 3GB"
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            />
+          </div>
+          <div>
+            <label>Call:</label>
+            <input
+              type="text"
+              value={formData.call}
+              onChange={(e) => setFormData({...formData, call: e.target.value})}
+              placeholder="e.g., Unlimited calls, 100 mins"
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            />
+          </div>
+          <div>
+            <label>Description:</label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            />
+          </div>
+          <div>
+            <label>Type/Category:</label>
+            <select
+              value={formData.type}
+              onChange={(e) => setFormData({...formData, type: e.target.value})}
+              style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+              required
+            >
+              <option value="RECOMMENDED">RECOMMENDED</option>
+              <option value="TRULY UNLIMITED">TRULY UNLIMITED</option>
+              <option value="SMART RECHARGE">SMART RECHARGE</option>
+              <option value="DATA">DATA</option>
+              <option value="UNLIMITED 5G">UNLIMITED 5G</option>
+            </select>
+          </div>
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                checked={formData.popular}
+                onChange={(e) => setFormData({...formData, popular: e.target.checked})}
+              />
+              Popular Plan
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <button type="button" onClick={onClose} style={{ padding: '8px 16px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#ff4000ff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              {isAdd ? 'Add' : 'Update'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default Admin;
