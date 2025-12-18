@@ -29,6 +29,8 @@ export default function Login() {
           validationSchema={LoginSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
+              console.log('🚀 Attempting login with:', values.email);
+              
               const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -36,9 +38,10 @@ export default function Login() {
               });
               
               const data = await response.json();
+              console.log('📥 Login response:', data);
               
               if (response.ok && data.success) {
-                console.log('✅ Login successful! Full response:', data);
+                console.log('✅ Login successful!');
                 console.log('👤 data.role:', data.role);
                 console.log('👤 data.user?.role:', data.user?.role);
                 
@@ -50,6 +53,10 @@ export default function Login() {
                 localStorage.setItem("loggedIn", "true");
                 localStorage.setItem("userRole", userRole);
                 localStorage.setItem("token", data.token);
+                
+                console.log('💾 Stored in localStorage:');
+                console.log('  - loggedIn:', localStorage.getItem("loggedIn"));
+                console.log('  - userRole:', localStorage.getItem("userRole"));
                 
                 // Store current user details
                 if (data.user) {
@@ -75,10 +82,11 @@ export default function Login() {
                   navigate('/');
                 }
               } else {
+                console.error('❌ Login failed:', data.message);
                 alert(data.message || 'Login failed');
               }
             } catch (error) {
-              console.error('Login error:', error);
+              console.error('💥 Login error:', error);
               alert('Login failed. Please check if the server is running.');
             } finally {
               setSubmitting(false);
