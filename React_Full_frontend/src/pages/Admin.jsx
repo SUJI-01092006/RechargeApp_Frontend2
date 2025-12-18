@@ -1,21 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import API_BASE_URL from '../config/api';
 
 const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('analytics');
   const [plans, setPlans] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-
   const [editingPlan, setEditingPlan] = useState(null);
   const [showAddPlan, setShowAddPlan] = useState(false);
+
+  // Check if user is admin on component mount
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    const isLoggedIn = localStorage.getItem('loggedIn');
+    
+    console.log('🔍 Admin component loaded');
+    console.log('  - userRole:', userRole);
+    console.log('  - isLoggedIn:', isLoggedIn);
+    console.log('  - Current URL:', window.location.pathname);
+    
+    if (userRole !== 'admin' || isLoggedIn !== 'true') {
+      console.log('❌ Not admin or not logged in - redirecting to login');
+      navigate('/login');
+    } else {
+      console.log('✅ Admin access confirmed');
+    }
+  }, [navigate]);
+
+  // Load plans from backend API
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/plans`);
+      const data = await response.json();
+      if (data.success) {
+        setPlans(data.plans);
+      }
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+      toast.error('Failed to load plans');
+    }
+  };
+
+  const [transactions, setTransactions] = useState([]);
+
+  // Fetch all recharge history from backend
+  useEffect(() => {
+    fetchAllHistory();
+  }, []);
+
+  const fetchAllHistory = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/recharge/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setTransactions(data.history);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    }
+  };
 
   // --- Analytics helpers ---
   const normalizeDate = (value) => {
     if (!value) return null;
-    // Handles both ISO dates and locale strings
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return null;
     return d.toDateString();
@@ -24,7 +82,6 @@ const Admin = () => {
   const todayKey = new Date().toDateString();
 
   const safeAmount = (t) => {
-    // Prefer explicit amount, fall back to price if that's what was stored
     return Number(t.amount ?? t.price ?? 0) || 0;
   };
 
@@ -46,81 +103,25 @@ const Admin = () => {
   const averageAmount =
     totalRecharges > 0 ? Math.round(totalAmount / totalRecharges) : 0;
 
-  // Fetch all users' transactions for admin (from MongoDB)
-  useEffect(() => {
-    const fetchAllRecharges = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        const response = await fetch('https://rechargeapp-backend.onrender.com/api/recharge/history', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        const result = await response.json();
-        if (response.ok && result.success) {
-          setTransactions(result.history || []);
-        } else {
-          console.error('Failed to fetch recharge history:', result.message);
-        }
-      } catch (error) {
-        console.error('Error fetching recharge history:', error);
-      }
-    };
-
-    // Load once on mount
-    fetchAllRecharges();
-
-    // Refresh whenever admin switches to analytics or user history tab
-    if (activeTab === 'analytics' || activeTab === 'users') {
-      fetchAllRecharges();
-    }
-  }, [activeTab]);
-
-  // Check if user is admin on component mount
-  useEffect(() => {
-    const userRole = localStorage.getItem('userRole');
-    const isLoggedIn = localStorage.getItem('loggedIn');
-    
-    if (userRole !== 'admin' || isLoggedIn !== 'true') {
-      navigate('/login');
-    } else {
-      setIsAuthorized(true);
-    }
-  }, [navigate]);
-
-  if (!isAuthorized) {
-    return <div style={{padding: '20px'}}>Checking authorization...</div>;
-  }
-
   // Plan management functions
   const handleDeletePlan = async (planId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`https://rechargeapp-backend.onrender.com/api/plans/${planId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/plans/${planId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete plan' }));
-        toast.error(errorData.message || 'Failed to delete plan');
-        return;
-      }
-      
-      const result = await response.json();
-      if (result.success) {
-        setPlans(plans.filter(plan => plan._id !== planId));
-        toast.success('Plan deleted from MongoDB successfully');
+      const data = await response.json();
+      if (data.success) {
+        fetchPlans();
+        toast.success('Plan deleted successfully');
       } else {
-        toast.error(result.message || 'Failed to delete plan');
+        toast.error(data.message || 'Failed to delete plan');
       }
-    } catch (err) {
-      console.error('Delete plan error:', err);
+    } catch (error) {
+      console.error('Error deleting plan:', error);
       toast.error('Failed to delete plan');
     }
   };
@@ -128,39 +129,24 @@ const Admin = () => {
   const handleUpdatePlan = async (planData) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Authentication required. Please login again.');
-        return;
-      }
-      
-      // Extract only the fields we want to update, excluding _id and __v
-      const { _id, __v, ...updateData } = planData;
-      
-      const response = await fetch(`https://rechargeapp-backend.onrender.com/api/plans/${_id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/plans/${planData._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify(planData)
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to update plan' }));
-        toast.error(errorData.message || 'Failed to update plan');
-        return;
-      }
-      
-      const result = await response.json();
-      if (result.success) {
-        setPlans(plans.map(plan => plan._id === _id ? result.plan : plan));
+      const data = await response.json();
+      if (data.success) {
+        fetchPlans();
         setEditingPlan(null);
-        toast.success('Plan updated in MongoDB successfully');
+        toast.success('Plan updated successfully');
       } else {
-        toast.error(result.message || 'Failed to update plan');
+        toast.error(data.message || 'Failed to update plan');
       }
-    } catch (err) {
-      console.error('Update plan error:', err);
+    } catch (error) {
+      console.error('Error updating plan:', error);
       toast.error('Failed to update plan');
     }
   };
@@ -168,7 +154,7 @@ const Admin = () => {
   const handleAddPlan = async (planData) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('https://rechargeapp-backend.onrender.com/api/plans', {
+      const response = await fetch(`${API_BASE_URL}/api/plans`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,37 +162,19 @@ const Admin = () => {
         },
         body: JSON.stringify(planData)
       });
-      const result = await response.json();
-      if (result.success) {
-        setPlans([...plans, result.plan]);
+      const data = await response.json();
+      if (data.success) {
+        fetchPlans();
         setShowAddPlan(false);
-        toast.success('Plan added to MongoDB successfully');
+        toast.success('Plan added successfully');
       } else {
-        toast.error(result.message || 'Failed to add plan');
+        toast.error(data.message || 'Failed to add plan');
       }
-    } catch (err) {
-      console.error('Add plan error:', err);
+    } catch (error) {
+      console.error('Error adding plan:', error);
       toast.error('Failed to add plan');
     }
   };
-
-  // Fetch plans from MongoDB
-  useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await fetch('https://rechargeapp-backend.onrender.com/api/plans');
-        const result = await response.json();
-        if (result.success) {
-          setPlans(result.plans);
-        }
-      } catch (error) {
-        console.error('Error fetching plans:', error);
-      }
-    };
-    fetchPlans();
-  }, []);
-
-
 
   return (
     <div style={{ padding: '20px' }}>
@@ -340,13 +308,13 @@ const Admin = () => {
           {transactions.length > 0 ? (
             <div>
               {transactions.map((transaction, index) => (
-                <div key={index} style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '8px', marginBottom: '10px' }}>
-                  <h4>{transaction.type || 'Recharge'} - {transaction.operator || 'Unknown'}</h4>
-                  <p>User: {transaction.userId?.name || 'Unknown'} ({transaction.userId?.email || 'N/A'})</p>
-                  <p>Phone: {transaction.phoneNumber || 'N/A'}</p>
+                <div key={transaction._id || index} style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '8px', marginBottom: '10px' }}>
+                  <h4>{transaction.type || 'Recharge'} - {transaction.operator || 'Airtel'}</h4>
+                  <p>User: {transaction.userId?.email || transaction.userId?.name || 'Unknown'}</p>
                   <p>Amount: ₹{transaction.amount || 0}</p>
+                  <p>Phone: {transaction.phoneNumber || 'N/A'}</p>
+                  <p>Status: {transaction.status || 'N/A'}</p>
                   <p>Date: {new Date(transaction.date || transaction.createdAt).toLocaleString()}</p>
-                  <p>Status: {transaction.status || 'Completed'}</p>
                 </div>
               ))}
             </div>
@@ -371,13 +339,16 @@ const Admin = () => {
             {plans.map(plan => (
               <div key={plan._id} style={{ padding: '15px', border: '1px solid #ccc', borderRadius: '8px' }}>
                 <h4>{plan.operator?.toUpperCase()} - ₹{plan.price}</h4>
+                <p><strong>Type:</strong> {plan.type}</p>
                 <p><strong>Validity:</strong> {plan.validity}</p>
+                <p><strong>Data:</strong> {plan.data}</p>
+                <p><strong>Calls:</strong> {plan.call}</p>
                 <p><strong>Details:</strong> {plan.description}</p>
                 {plan.popular && <span style={{ backgroundColor: '#28a745', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>Popular</span>}
                 <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
                   <button
                     onClick={() => setEditingPlan(plan)}
-                    style={{ padding: '5px 10px', backgroundColor: '#0051ffff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    style={{ padding: '5px 10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                   >
                     Edit
                   </button>
