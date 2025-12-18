@@ -182,10 +182,14 @@ const Admin = () => {
         <h1>Admin Dashboard</h1>
         <button 
           onClick={() => {
+            console.log('🚪 Logging out...');
             localStorage.removeItem('loggedIn');
             localStorage.removeItem('userRole');
             localStorage.removeItem('currentUser');
-            navigate('/');
+            localStorage.removeItem('token');
+            localStorage.clear(); // Clear all localStorage
+            console.log('✅ All data cleared');
+            window.location.href = '/'; // Force page reload
           }}
           style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
         >
