@@ -3,6 +3,10 @@ import React from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config/api";
+
+console.log('🔗 API Base URL:', API_BASE_URL);
+console.log('🌍 Environment:', process.env.NODE_ENV);
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,7 +29,7 @@ export default function Login() {
           validationSchema={LoginSchema}
           onSubmit={async (values, { setSubmitting }) => {
             try {
-              const response = await fetch('https://rechargeapp-backend.onrender.com/api/auth/login', {
+              const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values)
