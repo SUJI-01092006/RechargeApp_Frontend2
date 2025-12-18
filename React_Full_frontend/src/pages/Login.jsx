@@ -38,12 +38,20 @@ export default function Login() {
               const data = await response.json();
               
               if (response.ok && data.success) {
-                console.log('✅ Login successful! Token:', data.token);
-                console.log('👤 User role:', data.role);
+                console.log('✅ Login successful! Full response:', data);
+                console.log('👤 data.role:', data.role);
+                console.log('👤 data.user?.role:', data.user?.role);
+                
+                // Get role from response (try both locations)
+                const userRole = data.role || data.user?.role || 'user';
+                console.log('🎯 Final detected role:', userRole);
+                
+                // Store in localStorage
                 localStorage.setItem("loggedIn", "true");
-                localStorage.setItem("userRole", data.role || 'user');
+                localStorage.setItem("userRole", userRole);
                 localStorage.setItem("token", data.token);
-                // Store current user details for per-user history
+                
+                // Store current user details
                 if (data.user) {
                   localStorage.setItem(
                     "currentUser",
@@ -55,13 +63,15 @@ export default function Login() {
                     })
                   );
                 }
+                
                 alert(data.message || 'Login successful');
                 
-                if ((data.role || 'user') === 'admin') {
-                  console.log('🔄 Navigating to admin page...');
+                // Navigate based on role
+                if (userRole === 'admin') {
+                  console.log('🔄 Admin detected - navigating to /admin');
                   navigate('/admin');
                 } else {
-                  console.log('🔄 Navigating to home page...');
+                  console.log('🔄 Regular user - navigating to home');
                   navigate('/');
                 }
               } else {
