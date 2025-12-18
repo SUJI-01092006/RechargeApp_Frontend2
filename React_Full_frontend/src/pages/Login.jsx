@@ -38,7 +38,8 @@ export default function Login() {
               const data = await response.json();
               
               if (response.ok && data.success) {
-                console.log('Login successful! Token:', data.token);
+                console.log('✅ Login successful! Token:', data.token);
+                console.log('👤 User role:', data.role);
                 localStorage.setItem("loggedIn", "true");
                 localStorage.setItem("userRole", data.role || 'user');
                 localStorage.setItem("token", data.token);
@@ -57,9 +58,11 @@ export default function Login() {
                 alert(data.message || 'Login successful');
                 
                 if ((data.role || 'user') === 'admin') {
-                  window.location.href = "/admin";
+                  console.log('🔄 Navigating to admin page...');
+                  navigate('/admin');
                 } else {
-                  window.location.href = "/";
+                  console.log('🔄 Navigating to home page...');
+                  navigate('/');
                 }
               } else {
                 alert(data.message || 'Login failed');
