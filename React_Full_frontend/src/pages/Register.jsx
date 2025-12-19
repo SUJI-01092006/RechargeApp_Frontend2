@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config/api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function Register() {
     try {
       console.log('Sending registration data:', form);
       
-      const response = await fetch('https://rechargeapp-backend.onrender.com/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -49,7 +50,20 @@ export default function Register() {
       
       if (data.success) {
         alert(`${form.userType === 'admin' ? 'Admin' : 'User'} Account Created Successfully!`);
-        navigate("/login");
+        
+        // Auto-login admin after registration
+        if (form.userType === 'admin') {
+          localStorage.setItem("loggedIn", "true");
+          localStorage.setItem("userRole", "admin");
+          localStorage.setItem("currentUser", JSON.stringify({
+            name: form.name,
+            email: form.email,
+            role: "admin"
+          }));
+          navigate("/admin");
+        } else {
+          navigate("/login");
+        }
       } else {
         alert(data.message || 'Registration failed. Please try again.');
       }
